@@ -13,9 +13,11 @@ require (
 	github.com/golang/groupcache v0.0.0-20191227052852-215e87163ea7 // indirect
 	github.com/golang/protobuf v1.3.2 // indirect
 	github.com/kennygrant/sanitize v1.2.4 // indirect
+	github.com/ledongthuc/pdf v0.0.0-20190830105003-8ac343ec9fdd
 	github.com/saintfish/chardet v0.0.0-20120816061221-3af4cd4741ca // indirect
 	github.com/temoto/robotstxt v1.1.1 // indirect
 	github.com/unidoc/unipdf/v3 v3.3.0 // indirect
 	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
+	rsc.io/pdf v0.1.1
 )
