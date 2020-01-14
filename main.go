@@ -43,11 +43,18 @@ func findResults(url string) {
 	d.OnHTML("#form1 table tbody table tr", func(f *colly.HTMLElement) {
 		if count != 1 {
 			elCount := 1
-			var name, date, filePtr string
+			var fullName, code, name, date, filePtr string
 			f.ForEach("td", func(_ int, el *colly.HTMLElement) {
 				switch elCount {
 				case 1:
-					name = el.Text
+					fullName = el.Text
+					re := regexp.MustCompile(`^(.+) \((.+)\)$`)
+					matched := re.FindStringSubmatch(fullName)
+					if len(matched) == 3 {
+						name = matched[1]
+						code = matched[2]
+					}
+
 				case 2:
 					date = el.Text
 				case 3:
@@ -59,7 +66,7 @@ func findResults(url string) {
 				fileURL := host + "tmp" + filePtr + ".pdf"
 				dir, _ := os.Getwd()
 				date = strings.ReplaceAll(date, "/", "-")
-				filepath := dir + "/" + date + ".pdf"
+				filepath := dir + "/" + name + " " + code + " " + date + ".pdf"
 				if err := downloadFile(filepath, fileURL); err != nil {
 					panic(err)
 				}
