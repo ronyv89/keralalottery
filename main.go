@@ -4,14 +4,21 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"cloud.google.com/go/firestore"
 	"github.com/gocolly/colly"
 	"github.com/ledongthuc/pdf"
+	"golang.org/x/net/context"
+
+	firebase "firebase.google.com/go"
+
+	"google.golang.org/api/option"
 )
 
 type ConsolationPrize struct {
@@ -26,20 +33,35 @@ type Prize struct {
 }
 
 func main() {
-	c := colly.NewCollector()
-	c.OnHTML("div.contentpane iframe[src]", func(e *colly.HTMLElement) {
-		findResults(e.Attr("src"))
-	})
-	c.OnRequest(func(r *colly.Request) {
-		fmt.Println("Visiting", r.URL.String())
-	})
-	c.Visit("http://keralalotteries.in/index.php/quick-view/result")
+	opt := option.WithCredentialsFile("./serviceAccountKey.json")
+	ctx := context.Background()
+	app, err := firebase.NewApp(ctx, nil, opt)
+	if err != nil {
+		fmt.Errorf("error initializing app: %v", err)
+	} else {
+		client, err := app.Firestore(ctx)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		defer client.Close()
+		c := colly.NewCollector()
+		c.OnHTML("div.contentpane iframe[src]", func(e *colly.HTMLElement) {
+			findResults(e.Attr("src"), client, ctx)
+		})
+		c.OnRequest(func(r *colly.Request) {
+			fmt.Println("Visiting", r.URL.String())
+		})
+		c.Visit("http://keralalotteries.in/index.php/quick-view/result")
+	}
+
 }
 
-func findResults(url string) {
+func findResults(url string, client *firestore.Client, ctx context.Context) {
 	d := colly.NewCollector()
 	count := 1
 	host := ""
+
+	fmt.Println(client)
 	d.OnHTML("#form1 table tbody table tr", func(f *colly.HTMLElement) {
 		if count != 1 {
 			elCount := 1
@@ -63,6 +85,9 @@ func findResults(url string) {
 				elCount++
 			})
 			if filePtr != "" {
+				_, err := client.Collection("lotteries").Doc(name).Set(ctx, map[string]interface{}{
+					"name": name,
+				})
 				fileURL := host + "tmp" + filePtr + ".pdf"
 				dir, _ := os.Getwd()
 				date = strings.ReplaceAll(date, "/", "-")
@@ -70,9 +95,17 @@ func findResults(url string) {
 				if err := downloadFile(filepath, fileURL); err != nil {
 					panic(err)
 				}
+
 				prizes, err := readPdf(filepath)
 				if err != nil {
 					panic(err)
+				}
+				_, nerr := client.Collection("results").Doc(code).Set(ctx, map[string]interface{}{
+					"draw":   code,
+					"prizes": prizes,
+				})
+				if nerr != nil {
+					fmt.Println("Error storing results")
 				}
 				fmt.Println(name, prizes)
 			}
