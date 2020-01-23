@@ -27,9 +27,10 @@ type ConsolationPrize struct {
 }
 
 type Prize struct {
-	PrizeAmount string
-	Winners     []string
-	Consolation ConsolationPrize
+	PrizeAmount        string
+	Winners            []string
+	ConsolationPresent bool
+	Consolation        ConsolationPrize
 }
 
 func main() {
@@ -61,7 +62,6 @@ func findResults(url string, client *firestore.Client, ctx context.Context) {
 	count := 1
 	host := ""
 
-	fmt.Println(client)
 	d.OnHTML("#form1 table tbody table tr", func(f *colly.HTMLElement) {
 		if count != 1 {
 			elCount := 1
@@ -102,6 +102,7 @@ func findResults(url string, client *firestore.Client, ctx context.Context) {
 				}
 				_, nerr := client.Collection("results").Doc(code).Set(ctx, map[string]interface{}{
 					"draw":   code,
+					"date":   date,
 					"prizes": prizes,
 				})
 				if nerr != nil {
@@ -131,7 +132,6 @@ func extractFilePtr(jsScript string) string {
 }
 
 func downloadFile(filepath string, url string) error {
-
 	// Get the data
 	resp, err := http.Get(url)
 	if err != nil {
@@ -201,19 +201,24 @@ func readPdf(path string) ([]Prize, error) {
 									re := regexp.MustCompile(prizeString(prizeCount+1) + ` Prize- (.+)`)
 									match := re.FindStringSubmatch(trimmed)
 									if len(match) == 0 {
-										return prizes, nil
+										if trimmed != "FOR THE TICKETS ENDING WITH THE FOLLOWING NUMBERS" {
+											return prizes, nil
+										}
+									} else {
+										if match[1] == "Consolation" {
+											consolationStarted = true
+											prizes[len(prizes)-1].ConsolationPresent = true
+											prizes[len(prizes)-1].Consolation.PrizeAmount = match[2]
+										} else {
+											prizeCount++
+											var prize Prize
+											prize.PrizeAmount = match[2]
+											prizes = append(prizes, prize)
+										}
+										prizeStarted = true
+										prizeStopped = false
 									}
 
-									if match[1] == "Consolation" {
-										consolationStarted = true
-									} else {
-										prizeCount++
-										var prize Prize
-										prize.PrizeAmount = match[2]
-										prizes = append(prizes, prize)
-									}
-									prizeStarted = true
-									prizeStopped = false
 								}
 								// re2 := regexp.MustCompile(`^(\d+)$`)
 							} else {
