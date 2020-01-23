@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
+	"keralalottery"
 	"net/http"
 	"os"
 	"regexp"
@@ -15,45 +15,36 @@ import (
 	"github.com/gocolly/colly"
 	"github.com/ledongthuc/pdf"
 	"golang.org/x/net/context"
-
-	firebase "firebase.google.com/go"
-
-	"google.golang.org/api/option"
 )
 
-type ConsolationPrize struct {
-	PrizeAmount string
-	Winners     []string
-}
-
-type Prize struct {
-	PrizeAmount        string
-	Winners            []string
-	ConsolationPresent bool
-	Consolation        ConsolationPrize
-}
-
 func main() {
-	opt := option.WithCredentialsFile("./serviceAccountKey.json")
-	ctx := context.Background()
-	app, err := firebase.NewApp(ctx, nil, opt)
-	if err != nil {
-		fmt.Errorf("error initializing app: %v", err)
-	} else {
-		client, err := app.Firestore(ctx)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		defer client.Close()
-		c := colly.NewCollector()
-		c.OnHTML("div.contentpane iframe[src]", func(e *colly.HTMLElement) {
-			findResults(e.Attr("src"), client, ctx)
-		})
-		c.OnRequest(func(r *colly.Request) {
-			fmt.Println("Visiting", r.URL.String())
-		})
-		c.Visit("http://keralalotteries.in/index.php/quick-view/result")
-	}
+	// dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fmt.Println(dir)
+	// // opt := option.WithCredentialsFile("../serviceAccountKey.json")
+	// parsed, err := keralalottery.ParseLocalPDF("/home/rony/go/src/github.com/ronyv89/keralalottery/03-01-2020.pdf")
+	// fmt.Println(parsed)
+	// ctx := context.Background()
+	// app, err := firebase.NewApp(ctx, nil, opt)
+	// if err != nil {
+	// 	fmt.Errorf("error initializing app: %v", err)
+	// } else {
+	// 	client, err := app.Firestore(ctx)
+	// 	if err != nil {
+	// 		log.Fatalln(err)
+	// 	}
+	// 	defer client.Close()
+	// 	c := colly.NewCollector()
+	// 	c.OnHTML("div.contentpane iframe[src]", func(e *colly.HTMLElement) {
+	// 		findResults(e.Attr("src"), client, ctx)
+	// 	})
+	// 	c.OnRequest(func(r *colly.Request) {
+	// 		fmt.Println("Visiting", r.URL.String())
+	// 	})
+	// 	c.Visit("http://keralalotteries.in/index.php/quick-view/result")
+	// }
 
 }
 
@@ -151,7 +142,7 @@ func downloadFile(filepath string, url string) error {
 	return err
 }
 
-func readPdf(path string) ([]Prize, error) {
+func readPdf(path string) ([]keralalottery.Prize, error) {
 	f, r, err := pdf.Open(path)
 	defer func() {
 		_ = f.Close()
@@ -164,7 +155,7 @@ func readPdf(path string) ([]Prize, error) {
 	prizeStarted := false
 	consolationStarted := false
 	prizeStopped := true
-	var prizes []Prize
+	var prizes []keralalottery.Prize
 	for pageIndex := 1; pageIndex <= totalPage; pageIndex++ {
 		p := r.Page(pageIndex)
 		if p.V.IsNull() {
@@ -176,13 +167,13 @@ func readPdf(path string) ([]Prize, error) {
 				trimmed := strings.TrimSpace(word.S)
 				if trimmed != "" {
 					if !prizeStarted {
-						re := regexp.MustCompile(prizeString(prizeCount) + ` Prize- (.+)`)
+						re := regexp.MustCompile(prizeString(prizeCount) + ` keralalottery.Prize- (.+)`)
 						match := re.FindStringSubmatch(trimmed)
 						// First prize
 						if len(match) != 0 {
 							prizeStarted = true
 							prizeStopped = false
-							var prize Prize
+							var prize keralalottery.Prize
 							prize.PrizeAmount = match[2]
 							prizes = append(prizes, prize)
 						}
@@ -198,7 +189,7 @@ func readPdf(path string) ([]Prize, error) {
 								matched3 := re3.FindStringSubmatch(trimmed)
 								if len(matched3) == 0 {
 									consolationStarted = false
-									re := regexp.MustCompile(prizeString(prizeCount+1) + ` Prize- (.+)`)
+									re := regexp.MustCompile(prizeString(prizeCount+1) + ` keralalottery.Prize- (.+)`)
 									match := re.FindStringSubmatch(trimmed)
 									if len(match) == 0 {
 										if trimmed != "FOR THE TICKETS ENDING WITH THE FOLLOWING NUMBERS" {
@@ -211,7 +202,7 @@ func readPdf(path string) ([]Prize, error) {
 											prizes[len(prizes)-1].Consolation.PrizeAmount = match[2]
 										} else {
 											prizeCount++
-											var prize Prize
+											var prize keralalottery.Prize
 											prize.PrizeAmount = match[2]
 											prizes = append(prizes, prize)
 										}
@@ -245,9 +236,6 @@ func readPdf(path string) ([]Prize, error) {
 	return prizes, nil
 }
 
-func addPrizeWinner(prices []Prize) {
-
-}
 func prizeString(prizeCount int) string {
 	var postfix string
 	prizeCountString := strconv.Itoa(prizeCount)

@@ -1,4 +1,4 @@
-package history
+package keralalottery
 
 import (
 	"fmt"
@@ -9,16 +9,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly"
 )
-
-type Lottery struct {
-	Name  string
-	Index string
-}
-
-type Draw struct {
-	Name string
-	URL  string
-}
 
 // GetLotteriesList get the list of all lotteries listed
 func GetLotteriesList(domain string) []Lottery {
