@@ -6,10 +6,12 @@ import (
 	"io"
 	"keralalottery"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/firestore"
 	"github.com/gocolly/colly"
@@ -18,6 +20,27 @@ import (
 )
 
 func main() {
+	domain := "http://103.251.43.52"
+	lotteries := keralalottery.GetLotteriesList(domain)
+	for i := 0; i < len(lotteries); i++ {
+		lottery := lotteries[i]
+		os.Mkdir("./"+lottery.Name, os.ModePerm)
+		keralalottery.GetLotteryDraws(domain, lottery.Index, func(draw keralalottery.Draw) {
+			parsedURL, _ := url.Parse(draw.URL)
+			queryParams, _ := url.ParseQuery(parsedURL.RawQuery)
+			// fmt.Println(m["drawno"])
+
+			err := downloadFile("./"+lottery.Name+"/"+draw.Name+".pdf", domain+"/lottery/reports/draw/tmp"+queryParams["drawno"][0]+".pdf")
+			if err != nil {
+				fmt.Println(err)
+			}
+			time.Sleep(100 * time.Millisecond)
+			// resp, _ := http.Get(draw.URL)
+			// finalURL := resp.Request.URL.String()
+			// fmt.Println(finalURL)
+			// downloadFile(draw.Name+".pdf", finalURL)
+		})
+	}
 	// dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	// if err != nil {
 	// 	log.Fatal(err)

@@ -10,6 +10,9 @@ import (
 	"github.com/gocolly/colly"
 )
 
+// Downloader is the function to handle draw all results download for a single lottery
+type Downloader func(Draw)
+
 // GetLotteriesList get the list of all lotteries listed
 func GetLotteriesList(domain string) []Lottery {
 	var lotteries []Lottery
@@ -26,7 +29,7 @@ func GetLotteriesList(domain string) []Lottery {
 }
 
 // GetLotteryDraws get complete list of draws of the lottery
-func GetLotteryDraws(domain string, index string) []Draw {
+func GetLotteryDraws(domain string, index string, downloaderFunc Downloader) []Draw {
 	var draws []Draw
 	res, err := http.PostForm(domain+"/lottery/detailsofdrawweb.php",
 		url.Values{"lotterydet": {index}})
@@ -41,7 +44,12 @@ func GetLotteryDraws(domain string, index string) []Draw {
 		if columns.First().Text() != "LOTTERY" {
 			name := columns.Get(1).FirstChild.Data
 			url, _ := columns.Find("a").Attr("href")
-			draws = append(draws, Draw{name, url})
+			draw := Draw{name, url}
+			draws = append(draws, draw)
+			// If downloader function is provided, start download
+			if downloaderFunc != nil {
+				downloaderFunc(draw)
+			}
 		}
 	})
 	return draws
